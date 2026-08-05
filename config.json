@@ -1,0 +1,14 @@
+{
+  "nginx": "C:/nginx/nginx.exe",
+  "app": [
+    {
+      "path": "./app/istla/los_andes.exe"
+    },
+    {
+      "path": "./app/avatar/api-avatars.exe"
+    },
+    {
+      "path": "./app/temu/api-temu.exe"
+    }
+  ]
+}

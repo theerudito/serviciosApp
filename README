@@ -1,0 +1,11 @@
+go build -o ServiciosBBS.exe .
+
+sc.exe create ServiciosBBS binPath= "C:\Users\Usuario\Desktop\Jorge\Go\servicio\ServiciosBBS.exe" start= auto
+
+sc.exe start ServiciosBBS
+
+sc.exe stop ServiciosBBS
+
+sc.exe delete ServiciosBBS
+
+sc.exe query ServiciosBBS
