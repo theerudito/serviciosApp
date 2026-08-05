@@ -1,6 +1,6 @@
 go build -o ServiciosBBS.exe .
 
-sc.exe create ServiciosBBS binPath= "C:\Users\Usuario\Desktop\Jorge\Ejecutables\ServiciosBBS.exe" start= auto
+sc.exe create ServiciosBBS binPath= "C:\Users\Usuario\Desktop\Jorge\Ejecutables\servicios\ServiciosBBS.exe" start= auto
 
 sc.exe start ServiciosBBS
 
