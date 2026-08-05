@@ -221,7 +221,6 @@ func (s *LauncherService) stopProcesses() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	// Detener primero las APIs y al final Nginx.
 	for index := len(s.processes) - 1; index >= 0; index-- {
 		cmd := s.processes[index]
 
