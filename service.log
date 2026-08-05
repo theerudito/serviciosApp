@@ -47,3 +47,43 @@
 2026/08/05 15:23:47 Proceso terminado con error: C:\Users\Usuario\Desktop\Jorge\Go\servicio\app\istla\los_andes.exe: exit status 1
 2026/08/05 15:23:47 Proceso detenido, PID: 3348
 2026/08/05 15:23:47 Proceso terminado con error: C:\nginx\nginx.exe: exit status 1
+2026/08/05 15:23:59 Proceso iniciado: C:\nginx\nginx.exe, PID: 14024
+2026/08/05 15:23:59 Proceso iniciado: C:\Users\Usuario\Desktop\Jorge\Go\servicio\app\istla\los_andes.exe, PID: 30480
+2026/08/05 15:23:59 Proceso iniciado: C:\Users\Usuario\Desktop\Jorge\Go\servicio\app\avatar\api-avatars.exe, PID: 14496
+2026/08/05 15:23:59 Proceso iniciado: C:\Users\Usuario\Desktop\Jorge\Go\servicio\app\temu\api-temu.exe, PID: 8388
+2026/08/05 15:23:59 Servicio iniciado correctamente
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                  Fiber v2.52.11                   │ 
+ │               http://127.0.0.1:5001               │ 
+ │       (bound on host 0.0.0.0 and port 5001)       │ 
+ │                                                   │ 
+ │ Handlers ............. 3  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 14496 │ 
+ └───────────────────────────────────────────────────┘ 
+
+2026/08/05 15:23:59 ✅ Conectado a SQLite exitosamente.
+2026/08/05 15:23:59 skip ⏭️ dml.sql omitido: Los datos iniciales ya existen en la base de datos.
+2026/08/05 15:23:59 🚀 Servidor corriendo en el puerto 9000
+
+ ┌───────────────────────────────────────────────────┐ 
+ │      Gestión de Mantenimiento Los Andes v1.0      │ 
+ │                  Fiber v2.52.13                   │ 
+ │               http://127.0.0.1:9000               │ 
+ │       (bound on host 0.0.0.0 and port 9000)       │ 
+ │                                                   │ 
+ │ Handlers ............ 83  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 30480 │ 
+ └───────────────────────────────────────────────────┘ 
+
+2026/08/05 15:23:59 ✅ Conectado a SQLite
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                  Fiber v2.52.10                   │ 
+ │               http://127.0.0.1:5000               │ 
+ │       (bound on host 0.0.0.0 and port 5000)       │ 
+ │                                                   │ 
+ │ Handlers ............ 17  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID .............. 8388 │ 
+ └───────────────────────────────────────────────────┘ 
+
