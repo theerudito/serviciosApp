@@ -48,7 +48,13 @@ func main() {
 	}
 	defer logFile.Close()
 
-	logger := log.New(logFile, "", log.Ldate|log.Ltime)
+	logger := log.New(
+		logFile,
+		"",
+		log.Ldate|log.Ltime|log.Lmicroseconds,
+	)
+
+	logger.Printf("Directorio del servicio: %s", baseDir)
 
 	isService, err := svc.IsWindowsService()
 	if err != nil {
@@ -57,7 +63,9 @@ func main() {
 	}
 
 	if !isService {
-		logger.Println("Este ejecutable debe iniciarse como servicio de Windows")
+		logger.Println(
+			"Este ejecutable debe iniciarse como servicio de Windows",
+		)
 		return
 	}
 
@@ -86,6 +94,8 @@ func (s *LauncherService) Execute(
 			State: svc.StopPending,
 		}
 
+		s.stopProcesses()
+
 		return true, 1
 	}
 
@@ -110,6 +120,12 @@ func (s *LauncherService) Execute(
 			s.stopProcesses()
 
 			return false, 0
+
+		default:
+			s.logger.Printf(
+				"Solicitud de servicio no soportada: %d",
+				request.Cmd,
+			)
 		}
 	}
 
@@ -119,8 +135,20 @@ func (s *LauncherService) Execute(
 func (s *LauncherService) startProcesses() error {
 	baseDir, err := getBaseDir()
 	if err != nil {
+		return fmt.Errorf(
+			"no se pudo obtener el directorio del servicio: %w",
+			err,
+		)
+	}
+
+
+	appDir := filepath.Join(baseDir, "app")
+
+	if err := ensureAppDirectory(appDir); err != nil {
 		return err
 	}
+
+	s.logger.Printf("Carpeta app verificada: %s", appDir)
 
 	configPath := filepath.Join(baseDir, "config.json")
 
@@ -129,24 +157,86 @@ func (s *LauncherService) startProcesses() error {
 		return err
 	}
 
-	if strings.TrimSpace(config.Nginx) != "" {
-		if err := s.startProcess(config.Nginx, baseDir); err != nil {
-			return fmt.Errorf("no se pudo iniciar nginx: %w", err)
-		}
-	}
 
-	for _, app := range config.APP {
-		if strings.TrimSpace(app.Path) == "" {
-			continue
-		}
+	nginxPath := strings.TrimSpace(config.Nginx)
 
-		if err := s.startProcess(app.Path, baseDir); err != nil {
-			s.logger.Printf(
-				"No se pudo iniciar %s: %v",
-				app.Path,
+	if nginxPath != "" {
+		if err := s.startProcess(nginxPath, baseDir); err != nil {
+			return fmt.Errorf(
+				"no se pudo iniciar nginx: %w",
 				err,
 			)
 		}
+	} else {
+		s.logger.Println(
+			"Nginx no está configurado; se omite su inicio",
+		)
+	}
+
+
+	startedApps := 0
+
+	for index, app := range config.APP {
+		appPath := strings.TrimSpace(app.Path)
+
+		if appPath == "" {
+			s.logger.Printf(
+				"Aplicación en posición %d ignorada: ruta vacía",
+				index,
+			)
+			continue
+		}
+
+		if err := s.startProcess(appPath, appDir); err != nil {
+			s.logger.Printf(
+				"No se pudo iniciar la aplicación %q: %v",
+				appPath,
+				err,
+			)
+
+
+			continue
+		}
+
+		startedApps++
+	}
+
+	s.logger.Printf(
+		"Aplicaciones configuradas: %d; iniciadas correctamente: %d",
+		len(config.APP),
+		startedApps,
+	)
+
+	return nil
+}
+
+func ensureAppDirectory(appDir string) error {
+	info, err := os.Stat(appDir)
+
+	if err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf(
+				"la ruta app existe, pero no es una carpeta: %s",
+				appDir,
+			)
+		}
+
+		return nil
+	}
+
+	if !os.IsNotExist(err) {
+		return fmt.Errorf(
+			"no se pudo verificar la carpeta app: %w",
+			err,
+		)
+	}
+
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return fmt.Errorf(
+			"no se pudo crear la carpeta app %s: %w",
+			appDir,
+			err,
+		)
 	}
 
 	return nil
@@ -154,24 +244,56 @@ func (s *LauncherService) startProcesses() error {
 
 func (s *LauncherService) startProcess(
 	configuredPath string,
-	baseDir string,
+	referenceDir string,
 ) error {
-	executablePath := configuredPath
+	configuredPath = strings.TrimSpace(configuredPath)
 
+	if configuredPath == "" {
+		return fmt.Errorf("la ruta del ejecutable está vacía")
+	}
+
+	executablePath := filepath.Clean(configuredPath)
+
+	
 	if !filepath.IsAbs(executablePath) {
-		executablePath = filepath.Join(baseDir, executablePath)
+		executablePath = filepath.Join(
+			referenceDir,
+			executablePath,
+		)
 	}
 
 	executablePath, err := filepath.Abs(executablePath)
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"no se pudo resolver la ruta %q: %w",
+			configuredPath,
+			err,
+		)
 	}
 
-	if _, err := os.Stat(executablePath); err != nil {
+	info, err := os.Stat(executablePath)
+	if err != nil {
 		return fmt.Errorf(
 			"no existe el ejecutable %s: %w",
 			executablePath,
 			err,
+		)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf(
+			"la ruta corresponde a una carpeta, no a un ejecutable: %s",
+			executablePath,
+		)
+	}
+
+	if !strings.EqualFold(
+		filepath.Ext(executablePath),
+		".exe",
+	) {
+		return fmt.Errorf(
+			"el archivo no tiene extensión .exe: %s",
+			executablePath,
 		)
 	}
 
@@ -184,7 +306,11 @@ func (s *LauncherService) startProcess(
 	cmd.Stderr = s.logger.Writer()
 
 	if err := cmd.Start(); err != nil {
-		return err
+		return fmt.Errorf(
+			"no se pudo ejecutar %s: %w",
+			executablePath,
+			err,
+		)
 	}
 
 	s.mutex.Lock()
@@ -197,32 +323,64 @@ func (s *LauncherService) startProcess(
 		cmd.Process.Pid,
 	)
 
-	go func() {
-		err := cmd.Wait()
-
-		if err != nil {
-			s.logger.Printf(
-				"Proceso terminado con error: %s: %v",
-				executablePath,
-				err,
-			)
-		} else {
-			s.logger.Printf(
-				"Proceso terminado: %s",
-				executablePath,
-			)
-		}
-	}()
+	go s.waitForProcess(cmd, executablePath)
 
 	return nil
 }
 
-func (s *LauncherService) stopProcesses() {
+func (s *LauncherService) waitForProcess(
+	cmd *exec.Cmd,
+	executablePath string,
+) {
+	err := cmd.Wait()
+
+	if err != nil {
+		s.logger.Printf(
+			"Proceso terminado con error: %s: %v",
+			executablePath,
+			err,
+		)
+	} else {
+		s.logger.Printf(
+			"Proceso terminado correctamente: %s",
+			executablePath,
+		)
+	}
+
+	s.removeProcess(cmd)
+}
+
+func (s *LauncherService) removeProcess(target *exec.Cmd) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	for index := len(s.processes) - 1; index >= 0; index-- {
-		cmd := s.processes[index]
+	for index, cmd := range s.processes {
+		if cmd != target {
+			continue
+		}
+
+		s.processes = append(
+			s.processes[:index],
+			s.processes[index+1:]...,
+		)
+
+		return
+	}
+}
+
+func (s *LauncherService) stopProcesses() {
+
+	s.mutex.Lock()
+
+	processes := make([]*exec.Cmd, len(s.processes))
+	copy(processes, s.processes)
+
+	s.processes = nil
+
+	s.mutex.Unlock()
+
+	for index := len(processes) - 1; index >= 0; index-- {
+		cmd := processes[index]
 
 		if cmd == nil || cmd.Process == nil {
 			continue
@@ -238,26 +396,31 @@ func (s *LauncherService) stopProcesses() {
 			"/F",
 		)
 
-		if output, err := taskkill.CombinedOutput(); err != nil {
+		output, err := taskkill.CombinedOutput()
+		if err != nil {
 			s.logger.Printf(
 				"No se pudo detener PID %d: %v, salida: %s",
 				pid,
 				err,
-				string(output),
+				strings.TrimSpace(string(output)),
 			)
-		} else {
-			s.logger.Printf("Proceso detenido, PID: %d", pid)
+			continue
 		}
-	}
 
-	s.processes = nil
+		s.logger.Printf(
+			"Proceso detenido, PID: %d, salida: %s",
+			pid,
+			strings.TrimSpace(string(output)),
+		)
+	}
 }
 
 func loadConfig(path string) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"no se pudo abrir config.json: %w",
+			"no se pudo abrir config.json en %s: %w",
+			path,
 			err,
 		)
 	}
@@ -265,7 +428,9 @@ func loadConfig(path string) (*Config, error) {
 
 	var config Config
 
-	if err := json.NewDecoder(file).Decode(&config); err != nil {
+	decoder := json.NewDecoder(file)
+
+	if err := decoder.Decode(&config); err != nil {
 		return nil, fmt.Errorf(
 			"config.json inválido: %w",
 			err,
@@ -278,7 +443,18 @@ func loadConfig(path string) (*Config, error) {
 func getBaseDir() (string, error) {
 	executablePath, err := os.Executable()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"no se pudo obtener la ruta del ejecutable: %w",
+			err,
+		)
+	}
+
+	executablePath, err = filepath.Abs(executablePath)
+	if err != nil {
+		return "", fmt.Errorf(
+			"no se pudo resolver la ruta del ejecutable: %w",
+			err,
+		)
 	}
 
 	return filepath.Dir(executablePath), nil

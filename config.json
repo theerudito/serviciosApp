@@ -2,13 +2,16 @@
   "nginx": "C:/nginx/nginx.exe",
   "app": [
     {
-      "path": "C:/Users/Usuario/Desktop/Jorge/Go/servicio/app/istla/los_andes.exe"
+      "path": "istla/api-istla.exe"
     },
     {
-      "path": "C:/Users/Usuario/Desktop/Jorge/Go/servicio/app/avatar/api-avatars.exe"
+      "path": "avatar/api-avatars.exe"
     },
     {
-      "path": "C:/Users/Usuario/Desktop/Jorge/Go/servicio/app/temu/api-temu.exe"
+      "path": "temu/api-temu.exe"
+    },
+    {
+      "path": "los_andes/api-los-andes.exe"
     }
   ]
 }
